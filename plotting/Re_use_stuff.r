@@ -9,13 +9,7 @@ source('imports/FilterAlign.R')
 source('imports/BuildTree.R')
 source('imports/create_frames.R')
 source('imports/Create_haplo_list_v2.r')
-source('imports/FulviosFunctions.R')
-
-
-
-
-
-
+source('imports/HelpFunctions.R')
 
 
 library(ggtree)
@@ -24,12 +18,12 @@ library(ggplot2)
 
 #This was your out_name when you did these calculations.
 #You can find it in the info file of the corresponding folder.
-out_name <- "Austria"
+out_name <- "Test"
 
 #This was the date on which you did your calculations, 
 #that can also be found in the info file.
 #Format: yyyy-mm-dd
-the_date <- "2020-06-12"
+the_date <- "2020-06-19"
 
 dir_name <- get_dir_name(out_name, the_date)
 
@@ -45,18 +39,26 @@ newtree <- read.tree(get_ml_tree_name(dir_name, out_name, the_date))
 hhh_full <- readRDS(get_pos_frame_name(dir_name, out_name, the_date))
 
 
+#With this you can find out which of the last ones should be thrown out
+#By Browsing you see how much is in the end just because there is stuff missing.
+BrowseSeqs(my.subseq(aligned_data, indices_wuhan(phydat)[
+  as.integer(colnames(hhh_full))]), highlight = 0)
+
+update_colnames(hhh_full, aligned_data, phydat)
+
+#These are the right numbers for the test file.
+min_col <- 0
+max_col <- 51
+hhh_full <- hhh_full[which(as.integer(colnames(hhh_full))>min_col)]
+hhh_full <- hhh_full[which(as.integer(colnames(hhh_full))<max_col)]
 
 
-#We can check if some things in the position frame just come because of measurement uncertainty 
-#(e.g. if everything is A in a column and there is one R, this column will be deleted.)
-lists <- create_uncertainty_list()
 
 
-length(lists)
-hhh_full <- throw_out_measurement_uncertainty(hhh_full, aligned_data, lists, phydat)
-#plot as usual without any long calculations.
+#Order columns -- if you want that
+hhh_full <- hhh_full[order(colSums(hhh_full == F))]
 
-
+#plot as usual without long calculations:
 
 
 #the position frame in the right way for plotting
@@ -84,7 +86,7 @@ the_right_color_vector <- shorten_color_vector(named_colors, fitted_heatmap)
 
 #Now, we rename the names of the mutations e.g. from '241' to 'C241T'
 colnames(fitted_heatmap) <- 
-  update_colnames(hhh_full, aligned_data)
+  update_colnames(hhh_full, aligned_data, phydat)
 
 #In very rare cases, there are weird mutations. 
 #Then, weird_cols is not empty. 
@@ -97,78 +99,26 @@ if (any(which(!str_sub(colnames(fitted_heatmap), start = 1, end = 1) %in% c("G",
 
 
 
-#We are ready for the first plot!!
+#We are ready for the  plot!!
 #Unfortunately, the parameters here always have to be adjusted manually
 #until it looks nice.
 
+#Sometimes the newtree$tip.label or rownames(fitted_heatmap) are changed. Then you need to change back...
+
+
+
+
 ploton <- ggtree(newtree,size = 0.2, branch.length = 'none')+geom_tiplab(size = 0.8)
-                                    
+                   
+
 gheatmap(ploton, fitted_heatmap, offset=3, width=1.2, font.size=1.5, 
          colnames_angle=-45, hjust=0,legend_title = NULL) +
   scale_x_ggtree() +
   scale_fill_manual(values = the_right_color_vector) +theme(legend.position = 'none')
 
-#We can also only display the dates.
-labels <- create_date_labeling(newtree)
-#or include the epi_isl number
-labels <- create_epiisl_date_labeling(newtree)
-
-ploton <- ggtree(newtree,size = 0.2, branch.length = 'none')+geom_tiplab(aes(
-  label = labels),size = 0.6)
-gheatmap(ploton, fitted_heatmap, offset=2, width=1.4, font.size=0.8, 
-              colnames_angle=-45, hjust=0,legend_title = NULL) +
-  scale_x_ggtree() +
-  scale_fill_manual(values = the_right_color_vector) +theme(legend.position = 'none')
 
 
 
-
-#With this, we can check out how much sense this frame makes.
-#Change this to T if you want to..
-i_want_to_check_this_out <- F
-if(i_want_to_check_this_out){
-BrowseSeqs(my.subseq(mystring = aligned_data, sites = as.integer(colnames(hhh_full))))
-}
-
-
-#-------------------------------------------------------------------#
-#We actually don't do stuff like the below any more...
-#This gives then these haploframes
-#-------------------------------------------------------------------#
-
-
-
-
-#The exact same procedure as above will bring it in the right shape and provide all
-#we need for plotting.
-
-#If you didn't run the last part of the main.r file, the lower thing does not exist. 
-haplo_frame <- readRDS(get_haplo_frame_name(dir_name, out_name, the_date))
-
-
-
-shading_level <- 80
-fitted_haplo_frame <- fitting_df_with_shading(haplo_frame)
-
-#Create breaks which tell the plot which things to color how
-the_haplo_breaks <- create_breaks_for_shad(fitted_haplo_frame)
-
-#Create our colors
-colors <- create_hap_shade_col_vec(shading_level)
-
-#For plotting, the colors need to be in a named vector
-named_haplo_colors <- create_named_hap_shade_col_vec(colors, the_haplo_breaks)
-
-#Throw out colors that will not be used for coloring
-the_right_haplo_color_vector <- shorten_color_vector(named_haplo_colors, fitted_haplo_frame)
-
-
-
-ploton <- ggtree(newtree,size = 0.2, branch.length = 'none')+geom_tiplab(size = 1.5)
-gheatmap(ploton, fitted_haplo_frame, offset=15, width=1.9, font.size=1.9, 
-         colnames_angle=-45, hjust=0,legend_title = NULL) +
-  scale_x_ggtree() +
-  scale_fill_manual(values = the_right_haplo_color_vector) +theme(legend.position = 'none')
 
 
 

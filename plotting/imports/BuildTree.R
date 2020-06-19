@@ -1,7 +1,6 @@
 #--------------------------------------------------------------#
 #This file provides a function that builds a maximum likelihood
 #tree.
-#@Vincent Steffan
 #--------------------------------------------------------------#
 library(phangorn)
 library(stringr)

@@ -1,0 +1,13 @@
+@Vincent Steffan
+This where the thoughts when I created the test_fasta_file.fasta file by hand.
+
+Story: - Everybody has C11T and T25A
+       - Seq 2 and Seq Seq 6 have T44A
+       - Seq 9 and Seq 10 have G43A where Seq 7 only has G43R
+       - Seq 4 has an N at 24
+       - Seq 2 and Seq 5 have additional stuff at the beginning (for checking Wuhan indices)
+       - Seq 7 has a triple deletion at 18,19,20
+       - Seq 2 appears twice in the fasta file
+       - Seq 11 has 15 N's
+       - Seq 12 has only 24 nucleotides
+       - Seq 4 has stuff in the end missing

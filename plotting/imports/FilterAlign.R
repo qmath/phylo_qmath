@@ -2,7 +2,6 @@
 #This is the file with the functions for the filtering and alignment. 
 #We first filter the data and only keep what we call high coverage.
 #Then, we align the data together with the Wuhan sequence NC...
-#@Vincent Steffan
 #--------------------------------------------------------------#
 library(DECIPHER)
 #This function returns TRUE if dnastring is highcoverage.
@@ -11,8 +10,8 @@ return(alphabetFrequency(dnastring)[15] < max_gap &#15 <-> 'n'
        alphabetFrequency(dnastring)[16] < max_gap )#16 <-> '-'
 }
 
-throw_out_low_coverage <- function(dnastringset, show_report = T,
-                                   min_length = 29000, max_gap = 300){
+throw_out_low_coverage <- function(dnastringset,
+                                   min_length, max_gap,  show_report = T){
   cat("Filtering the sequences.\n")
   tot <- length(dnastringset)
   good <- 0
@@ -52,9 +51,10 @@ get_HCseqsaligned_name<- function(dir_name, out_name, the_date){
 }
 
 
-filter_combine_align <- function(in_file_name, out_name, dir_name, wuhan, the_date){
+filter_combine_align <- function(in_file_name, out_name, dir_name, wuhan, the_date, 
+                                 min_length = 29000, max_gap = 300){
   data <- readDNAStringSet(in_file_name)
-  data <- throw_out_low_coverage(data)
+  data <- throw_out_low_coverage(data, min_length, max_gap)
   data <- DNAStringSet(c(data, wuhan))
   data<-data[!duplicated(names(data))]#Sort out duplicates.
   saveRDS(data, get_HCseqs_name(dir_name, out_name, the_date))#We save it for later.

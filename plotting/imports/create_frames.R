@@ -1,11 +1,11 @@
 #--------------------------------------------------------------#
 #This is the file contains everything about creating the 
 #colorfull haploframes!
-#@Vincent Steffan
 #--------------------------------------------------------------#
 library(R.utils)
 library(dplyr)
 library(ggtree)
+
 
 
 get_wuhan_seq <- function(phydat){#Extracts the Wuhan sequence from phangorn data in nice way
@@ -33,7 +33,7 @@ indices_wuhan <- function(phydat){#returns the actual indices wrt wuhan respecti
 
 
 #This tells us which sequences differs from wuhan in which position.
-itff <- function(phydat_string, wuhan_seq,wuhan_indices ,lcut=114, rcut=30131){ 
+itff <- function(phydat_string, wuhan_seq,wuhan_indices ,lcut, rcut){ 
   mm<-unlist(str_split(toString(phydat_string),", "))
   bm<-which(!mm[wuhan_indices]==wuhan_seq[wuhan_indices] & !mm[wuhan_indices] =="n")
   return(bm[bm>=lcut&bm<=rcut])
@@ -51,12 +51,78 @@ get_pos_frame_name <- function(dir_name, out_name, the_date){
 }
 
 
-create_position_frame<- function(phydat, out_name, dir_name,the_date, threshold = 3){
+throw_out_measurement_uncertainty <- function(hhh_full, aligned_data, phydat){
+  lists <- create_uncertainty_list()
+  wuhan_seq <- get_wuhan_seq(phydat)
+  wuhan_indices <- indices_wuhan(phydat)
+  h <- hhh_full
+  for (position_tilde in as.integer(colnames(hhh_full))){#include wuhan indices!!!
+    position <- wuhan_indices[position_tilde]
+    print(position)
+    cat("Position:", position, '\n')
+    freqs <- nucleotideFrequencyAt(aligned_data, at = as.integer(position))
+    freq_sum <- freqs["A"]+freqs["C"] + freqs["G"] + freqs["T"]
+    cat("Normal stuff:",freq_sum, '\n')
+    if (freq_sum < length(rownames(hhh_full))){#First check with the fast nucleotideFrequencyAt
+      #function if there is anything to do!
+      cat("Will investigate...", "\n")
+      stuff_at_pos <- c()
+      for (name in rownames(hhh_full)){
+        str_sub(toString(aligned_data[which(names(aligned_data)==name)]), start = position
+                , end = position)
+        stuff_at_pos <- c(stuff_at_pos, str_sub(toString(aligned_data[which
+                                                                      (names(aligned_data)==name)]), start = position,
+                                                end = position))
+      }
+      not_spotted <- T
+      i = 1
+      while (not_spotted){
+        if (all(unique(stuff_at_pos)%in%lists[i][[1]])){
+          h <- h[-which(colnames(h) %in%c(position))]
+          not_spotted <- F
+        }else if (i == length(lists)){
+          not_spotted <- F
+        }
+        print(unique(stuff_at_pos))
+        print(lists[i])
+        i =i + 1
+      }
+    }else{cat('\n nothing to check here \n')}
+  }
+  #Now, we deleted all columns which consist only of ONE base and ambiguity characters.
+  #We still need to change entries to false when a sequence has an ambiguity character there.
+  cat("All unneccessary columns are thrown out. \n")
+  cat("I will now delete entries coming from ambiguity characters!\n")
+  contains_stuff <- c()
+  for (col in colnames(h)){
+    subsequence <- my.subseq(aligned_data, as.integer(as.integer(col)))
+    hallo <- h[[col]]
+    if (any(c("R", "Y", "S", "K", "M", "B", "D", "H", "V") %in% 
+            my.subseq(aligned_data, wuhan_indices[as.integer(col)]))){
+      cat(col, '\n')
+      contains_stuff <- c(contains_stuff, col)
+    }
+  }
+  for (col in contains_stuff){
+    not_good <- which(rownames(h) %in% 
+                        names(aligned_data)[which(my.subseq(aligned_data, wuhan_indices[as.integer(col)])%in%
+                                                    c("R", "Y", "S", "K", "M", "B", "D", "H", "V"))])
+    
+    h[[col]][not_good] <- rep(FALSE, length(h[[col]][not_good]))
+  }
+  
+  return(h)
+}
+
+
+
+create_position_frame<- function(aligned_data, phydat, out_name, dir_name,the_date, threshold = 3,
+                                 lcut = 100, rcut = 30000){
   wuhan_seq <- get_wuhan_seq(phydat)
   wuhan_indices <- indices_wuhan(phydat)
   changell<-list()
   for(nn in names(phydat)){
-    changell[[nn]]<-itff(phydat[nn],wuhan_seq, wuhan_indices)
+    changell[[nn]]<-itff(phydat[nn],wuhan_seq, wuhan_indices, lcut, rcut)
   }
   mmyy<-do.call(c,changell)
   res<-sort(unique(mmyy))
@@ -90,6 +156,11 @@ create_position_frame<- function(phydat, out_name, dir_name,the_date, threshold 
     hhh_full[[col]][which(hhh_full[[col]])]<-
       rep(col, len)
   }
+  
+  cat("I will now throw out unneccessary stuff.\n")
+  hhh_full <- throw_out_measurement_uncertainty(hhh_full, aligned_data, phydat)
+  
+  
   saveRDS(hhh_full, get_pos_frame_name(dir_name, out_name, the_date))#We save it for later.
   cat("I saved the position frame in the folder", dir_name,'.\n')
   cat("It's called", get_pos_frame_name(dir_name, out_name, the_date))
@@ -304,45 +375,6 @@ create_haplo_frame <- function(data, phydat, haplo_type_ll, dir_name, out_name, 
 }
 
 
-throw_out_measurement_uncertainty <- function(hhh_full, aligned_data, lists, phydat){
-  wuhan_seq <- get_wuhan_seq(phydat)
-  wuhan_indices <- indices_wuhan(phydat)
-  h <- hhh_full
-  for (position_tilde in as.integer(colnames(hhh_full))){#include wuhan indices!!!
-    position <- wuhan_indices[position_tilde]
-    print(position)
-    cat("Position:", position, '\n')
-    freqs <- nucleotideFrequencyAt(aligned_data, at = as.integer(position))
-    freq_sum <- freqs["A"]+freqs["C"] + freqs["G"] + freqs["T"]
-    cat("Normal stuff:",freq_sum, '\n')
-    if (freq_sum < length(rownames(hhh_full))){#First check with the fast nucleotideFrequencyAt
-      #function if there is anything to do!
-      cat("Will investigate...", "\n")
-      stuff_at_pos <- c()
-      for (name in rownames(hhh_full)){
-        str_sub(toString(aligned_data[which(names(aligned_data)==name)]), start = position
-                , end = position)
-        stuff_at_pos <- c(stuff_at_pos, str_sub(toString(aligned_data[which
-                                                                      (names(aligned_data)==name)]), start = position,
-                                                end = position))
-      }
-      not_spotted <- T
-      i = 1
-      while (not_spotted){
-        if (all(unique(stuff_at_pos)%in%lists[i][[1]])){
-          h <- h[-which(colnames(h) %in%c(position))]
-          not_spotted <- F
-        }else if (i == length(lists)){
-          not_spotted <- F
-        }
-        print(unique(stuff_at_pos))
-        print(lists[i])
-        i =i + 1
-      }
-    }else{cat('\n nothing to check here \n')}
-  }
-  return(h)
-}
 
 
 
@@ -387,6 +419,11 @@ update_colnames <- function(hhh_full, aligned_data, phydat){
   }
   return(new_colnames)
 }
+
+
+
+
+
 
 
 
